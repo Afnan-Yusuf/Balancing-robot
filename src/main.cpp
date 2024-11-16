@@ -6,9 +6,13 @@ Gyro Offsets -> X: -57 Y: -148 Z: -80
 */
 
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include "I2Cdev.h"
 #include "MPU6050_6Axis_MotionApps20.h"
 #include <Wire.h>
+#include <PID_v1.h>
+#include "motinit.h"
 
 MPU6050 mpu;
 
@@ -16,7 +20,6 @@ MPU6050 mpu;
 #define LED_PIN 13      // (Arduino is 13, Teensy is 11, Teensy++ is 6)
 bool blinkState = false;
 
-// MPU control/status vars
 bool dmpReady = false;  // set true if DMP init was successful
 uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
 uint8_t devStatus;      // return status after each device operation (0 = success, !0 = error)
@@ -34,10 +37,64 @@ float ypr[3];        // [yaw, pitch, roll]   yaw/pitch/roll container and gravit
 
 uint8_t teapotPacket[14] = {'$', 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0x00, 0x00, '\r', '\n'};
 
+
+double Setpoint = 0, Input, Output;
+
+int leftspeed = 0, rightspeed = 0;
+
+
+//Specify the links and initial tuning parameters
+float Kp=1, Ki=0, Kd=0;
+PID mypid(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
+
 volatile bool mpuInterrupt = false; // indicates whether MPU interrupt pin has gone high
 void dmpDataReady()
 {
   mpuInterrupt = true;
+}
+
+void getypr(void *parameter)
+{
+  while (1)
+  {
+    // read a packet from FIFO
+    if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer))
+    {
+      mpu.dmpGetQuaternion(&q, fifoBuffer);
+      mpu.dmpGetEuler(euler, &q);
+      //Serial.println(euler[1] * 180);
+      
+    }
+  }
+  vTaskDelay(1 / portTICK_PERIOD_MS);
+}
+
+
+void pidcontrol(void *parameter)
+{
+  while (1)
+  {
+    Input = (euler[1] * 180);
+    mypid.Compute();
+    rightspeed = Output;
+      leftspeed = Output;
+    if(Output > 0)
+    {
+      leftmotforward(leftspeed);
+      rightmotforward(rightspeed);
+    }else if (Output < 0)
+    {
+      leftmotbackward(-leftspeed);
+      rightmotbackward(-rightspeed);
+
+    }
+      
+
+
+    Serial.print(Output);
+    Serial.print("\t");
+    Serial.println(Input);
+  }
 }
 void setup()
 {
@@ -50,10 +107,10 @@ void setup()
   Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 
   devStatus = mpu.dmpInitialize();
-  mpu.setXGyroOffset(220);
-  mpu.setYGyroOffset(76);
-  mpu.setZGyroOffset(-85);
-  mpu.setZAccelOffset(1788);
+  mpu.setXGyroOffset(-5);
+  mpu.setYGyroOffset(-37);
+  mpu.setZGyroOffset(-22);
+  mpu.setZAccelOffset(1688);
 
   if (devStatus == 0)
   {
@@ -83,24 +140,17 @@ void setup()
     Serial.print(devStatus);
     Serial.println(F(")"));
   }
+  xTaskCreatePinnedToCore(getypr, "getypr", 2048, NULL, 1, NULL, 0);
+
+  xTaskCreatePinnedToCore(pidcontrol, "pidcontrol", 2048, NULL, 1, NULL, 1);
+  Input = euler[1] * 180;
+  mypid.SetMode(AUTOMATIC);
+  mypid.SetOutputLimits(-255, 255);
+  InitMot();
 }
 
 void loop()
 {
-  if (!dmpReady)
-    return;
-  // read a packet from FIFO
-  if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer))
-  {
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    mpu.dmpGetEuler(euler, &q);
-    Serial.print("euler\t");
-    Serial.print(euler[0] * 180 / M_PI);
-    Serial.print("\t");
-    Serial.print(euler[1] * 180 / M_PI);
-    Serial.print("\t");
-    Serial.println(euler[2] * 180 / M_PI);
-  }
 }
 
 /**/
