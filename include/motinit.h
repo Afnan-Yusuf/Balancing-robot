@@ -179,6 +179,8 @@ void InitMot()
 
     pidleft.SetMode(AUTOMATIC);
     pidright.SetMode(AUTOMATIC);
+    pidleft.SetOutputLimits(-255, 255);
+    pidright.SetOutputLimits(-255, 255);
 }
 void StopMot()
 {
@@ -252,3 +254,7 @@ long getRightEncoderCount()
     return encoderRightCount;
 }
 
+void goonencoder(int leftspeed, int rightspeed)
+{
+
+}
