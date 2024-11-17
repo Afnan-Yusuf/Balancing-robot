@@ -47,7 +47,15 @@ int leftspeed = 0, rightspeed = 0;
 float Kp=1, Ki=0, Kd=0;
 PID mypid(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
-volatile bool mpuInterrupt = false; // indicates whether MPU interrupt pin has gone high
+volatile bool mpuInterrupt = false; 
+
+
+
+
+
+
+
+
 void dmpDataReady()
 {
   mpuInterrupt = true;
@@ -88,12 +96,14 @@ void pidcontrol(void *parameter)
       rightmotbackward(-rightspeed);
 
     }
-      
+     
 
 
-    Serial.print(Output);
+    Serial.print(getLeftEncoderCount());
     Serial.print("\t");
-    Serial.println(Input);
+    Serial.print();
+    Serial.print("\t");
+    Serial.println();
   }
 }
 void setup()
