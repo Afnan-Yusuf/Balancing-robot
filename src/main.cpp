@@ -37,25 +37,17 @@ float ypr[3];        // [yaw, pitch, roll]   yaw/pitch/roll container and gravit
 
 uint8_t teapotPacket[14] = {'$', 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0x00, 0x00, '\r', '\n'};
 
-
 double Setpoint = 0, Input, Output;
 
 int leftspeed = 0, rightspeed = 0;
 
-
-//Specify the links and initial tuning parameters
-float Kp=1, Ki=0, Kd=0;
+// Specify the links and initial tuning parameters
+float Kp = 1.5, Ki = 0, Kd = 0;
 PID mypid(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
-volatile bool mpuInterrupt = false; 
+volatile bool mpuInterrupt = false;
 
-
-
-
-
-
-
-
+float onangle = 120;
 void dmpDataReady()
 {
   mpuInterrupt = true;
@@ -69,41 +61,49 @@ void getypr(void *parameter)
     if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer))
     {
       mpu.dmpGetQuaternion(&q, fifoBuffer);
-      mpu.dmpGetEuler(euler, &q);
-      //Serial.println(euler[1] * 180);
-      
+      mpu.dmpGetGravity(&gravity, &q);
+      mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+
+      // Serial.println(euler[1] * 180);
     }
   }
   vTaskDelay(1 / portTICK_PERIOD_MS);
 }
 
-
 void pidcontrol(void *parameter)
 {
   while (1)
   {
-    Input = (euler[1] * 180);
-    mypid.Compute();
-    rightspeed = Output;
-      leftspeed = Output;
-    if(Output > 0)
+    Input = (ypr[1] * 180);
+    if (Input > (-onangle) && Input < (onangle))
     {
+      mypid.Compute();
+      rightspeed = Output;
+      leftspeed = Output;
+      if (Output > 0)
+      {
+        leftmotforward(leftspeed);
+        rightmotforward(rightspeed);
+      }
+      else if (Output < 0)
+      {
+        leftmotbackward(-leftspeed);
+        rightmotbackward(-rightspeed);
+      }
+    }
+    else
+    {
+      rightspeed = 0;
+      leftspeed = 0;
       leftmotforward(leftspeed);
       rightmotforward(rightspeed);
-    }else if (Output < 0)
-    {
-      leftmotbackward(-leftspeed);
-      rightmotbackward(-rightspeed);
-
     }
-     
-
 
     Serial.print(getLeftEncoderCount());
     Serial.print("\t");
-    Serial.print();
+    Serial.print(Input);
     Serial.print("\t");
-    Serial.println();
+    Serial.println(Output);
   }
 }
 void setup()
@@ -125,8 +125,8 @@ void setup()
   if (devStatus == 0)
   {
     // Calibration Time: generate offsets and calibrate our MPU6050
-    mpu.CalibrateAccel(6);
-    mpu.CalibrateGyro(6);
+    //mpu.CalibrateAccel(6);
+    //mpu.CalibrateGyro(6);
     mpu.PrintActiveOffsets();
     Serial.println(F("Enabling DMP..."));
     mpu.setDMPEnabled(true);
