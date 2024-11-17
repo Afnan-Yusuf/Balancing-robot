@@ -11,7 +11,7 @@
 #define motr_encodea 35
 #define motr_encodeb 32
 
-const int freqm = 4000; // motor pwm frequency
+const int freqm = 1000; // motor pwm frequency
 const int mrfc = 4;     // Motor Right Forward Channel (mrfc)
 const int mrbc = 5;     // Motor Right Backward Channel (mrbc)
 const int mlfc = 6;     // Motor Left Forward Channel (mlfc)
