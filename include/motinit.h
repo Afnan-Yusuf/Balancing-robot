@@ -1,9 +1,15 @@
 #pragma once
 #include <Arduino.h>
+#include <PID_v1.h>
 #define motlf 13 // motor pins
 #define motlb 12
 #define motrf 27
 #define motrb 26
+
+#define motl_encodea 39 // encoder pins
+#define motl_encodeb 34
+#define motr_encodea 35
+#define motr_encodeb 32
 
 const int freqm = 4000; // motor pwm frequency
 const int mrfc = 4;     // Motor Right Forward Channel (mrfc)
@@ -12,6 +18,145 @@ const int mlfc = 6;     // Motor Left Forward Channel (mlfc)
 const int mlbc = 7;     //
 const int mpwmr = 8;    // motor pwm resolution(8bit)
 
+volatile long encoderLeftCount = 0;  // Left motor encoder count
+volatile long encoderRightCount = 0; // Right motor encoder count
+
+double Inputleft, Outputleft, Inputright, Outputright;
+double Setpointleft = 0, Setpointright = 0;
+
+double Kpl = 1, Kil = 0, Kdl = 0;
+
+double Kpr = 1, Kir = 0, Kdr = 0;
+
+PID pidleft(&Inputleft, &Outputleft, &Setpointleft, Kpl, Kil, Kdl, DIRECT);
+
+PID pidright(&Inputright, &Outputright, &Setpointright, Kpr, Kir, Kdr, DIRECT);
+
+
+
+int leftmotspeed = 0, rightmotspeed = 0;
+unsigned long lastTime = 0;
+int sampletime = 100;
+
+long lastLeftCount = 0, lastRightCount = 0;
+long currentLeftCount = 0, currentRightCount = 0;
+
+
+
+// Interrupt service routines for the encoders
+void IRAM_ATTR handleLeftEncoderA()
+{
+    if (digitalRead(motl_encodea) == HIGH)
+    {
+        // check channel B to see which way encoder is turning
+        if (digitalRead(motl_encodeb) == LOW)
+        {
+            encoderLeftCount = encoderLeftCount + 1; // CW
+        }
+        else
+        {
+            encoderLeftCount = encoderLeftCount - 1; // CCW
+        }
+    }
+    else // must be a high-to-low edge on channel A
+    {
+        // check channel B to see which way encoder is turning
+        if (digitalRead(motl_encodeb) == HIGH)
+        {
+            encoderLeftCount = encoderLeftCount + 1; // CW
+        }
+        else
+        {
+            encoderLeftCount = encoderLeftCount - 1; // CCW
+        }
+    }
+}
+
+void IRAM_ATTR handleRightEncoderA()
+{
+    if (digitalRead(motr_encodea) == HIGH)
+    {
+        // check channel B to see which way encoder is turning
+        if (digitalRead(motr_encodeb) == LOW)
+        {
+            encoderRightCount = encoderRightCount + 1; // CW
+        }
+        else
+        {
+            encoderRightCount = encoderRightCount - 1; // CCW
+        }
+    }
+    else // must be a high-to-low edge on channel A
+    {
+        // check channel B to see which way encoder is turning
+        if (digitalRead(motr_encodeb) == HIGH)
+        {
+            encoderRightCount = encoderRightCount + 1; // CW
+        }
+        else
+        {
+            encoderRightCount = encoderRightCount - 1; // CCW
+        }
+    }
+}
+
+void IRAM_ATTR handleLeftEncoderB()
+{
+    if (digitalRead(motl_encodeb) == HIGH)
+    {
+        // check channel A to see which way encoder is turning
+        if (digitalRead(motl_encodea) == HIGH)
+        {
+            encoderLeftCount = encoderLeftCount + 1; // CW
+        }
+        else
+        {
+            encoderLeftCount = encoderLeftCount - 1; // CCW
+        }
+    }
+    // Look for a high-to-low on channel B
+    else
+    {
+        // check channel B to see which way encoder is turning
+        if (digitalRead(motl_encodea) == LOW)
+        {
+            encoderLeftCount = encoderLeftCount + 1; // CW
+        }
+        else
+        {
+            encoderLeftCount = encoderLeftCount - 1; // CCW
+        }
+    }
+}
+
+void IRAM_ATTR handleRightEncoderB()
+{
+    if (digitalRead(motr_encodeb) == HIGH)
+    {
+        // check channel A to see which way encoder is turning
+        if (digitalRead(motr_encodea) == HIGH)
+        {
+            encoderRightCount = encoderRightCount + 1; // CW
+        }
+        else
+        {
+            encoderRightCount = encoderRightCount - 1; // CCW
+        }
+    }
+    // Look for a high-to-low on channel B
+    else
+    {
+        // check channel B to see which way encoder is turning
+        if (digitalRead(motr_encodea) == LOW)
+        {
+            encoderRightCount = encoderRightCount + 1; // CW
+        }
+        else
+        {
+            encoderRightCount = encoderRightCount - 1; // CCW
+        }
+    }
+}
 void InitMot()
 {
     ledcSetup(mrfc, freqm, mpwmr); // pwm channel and frequency and resolution setup
@@ -26,7 +171,14 @@ void InitMot()
     ledcWrite(mrbc, 0);
     ledcWrite(mlfc, 0);
     ledcWrite(mlbc, 0);
-    
+
+    attachInterrupt(digitalPinToInterrupt(motl_encodea), handleLeftEncoderA, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(motr_encodea), handleRightEncoderA, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(motl_encodeb), handleLeftEncoderB, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(motr_encodeb), handleRightEncoderB, CHANGE);
+
+    pidleft.SetMode(AUTOMATIC);
+    pidright.SetMode(AUTOMATIC);
 }
 void StopMot()
 {
@@ -84,3 +236,19 @@ void rightmotbackward(int spd)
     ledcWrite(mlfc, 0); // write all pwmm channel 0
     ledcWrite(mlbc, spd);
 }
+void resetEncoders()
+{
+    encoderLeftCount = 0;
+    encoderRightCount = 0;
+}
+// Function to get encoder counts
+long getLeftEncoderCount()
+{
+    return encoderLeftCount;
+}
+
+long getRightEncoderCount()
+{
+    return encoderRightCount;
+}
+
