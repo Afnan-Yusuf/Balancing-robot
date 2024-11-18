@@ -75,7 +75,7 @@ void pidcontrol(void *parameter)
   while (1)
   {
     Input = (ypr[1] * 180);
-    if (Input > (-onangle) && Input < (onangle))
+    /*if (Input > (-onangle) && Input < (onangle))
     {
       mypid.Compute();
       rightspeed = Output;
@@ -97,13 +97,13 @@ void pidcontrol(void *parameter)
       leftspeed = 0;
       leftmotforward(leftspeed);
       rightmotforward(rightspeed);
-    }
-
+    }*/
+    goonencoder(100, 100);
     Serial.print(getLeftEncoderCount());
     Serial.print("\t");
-    Serial.print(Input);
-    Serial.print("\t");
-    Serial.println(Output);
+    // Serial.print(Input);
+    // Serial.print("\t");
+    // Serial.println(Output);
   }
 }
 void setup()

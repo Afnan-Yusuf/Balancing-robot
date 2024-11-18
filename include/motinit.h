@@ -32,16 +32,14 @@ PID pidleft(&Inputleft, &Outputleft, &Setpointleft, Kpl, Kil, Kdl, DIRECT);
 
 PID pidright(&Inputright, &Outputright, &Setpointright, Kpr, Kir, Kdr, DIRECT);
 
-
-
 int leftmotspeed = 0, rightmotspeed = 0;
 unsigned long lastTime = 0;
-int sampletime = 100;
+int sampletime = 20;
+long deltacountleft = 0, deltacountright = 0;
+double encoderLeftSpeed = 0, encoderRightSpeed = 0;
 
 long lastLeftCount = 0, lastRightCount = 0;
 long currentLeftCount = 0, currentRightCount = 0;
-
-
 
 // Interrupt service routines for the encoders
 void IRAM_ATTR handleLeftEncoderA()
@@ -256,5 +254,34 @@ long getRightEncoderCount()
 
 void goonencoder(int leftspeed, int rightspeed)
 {
+    unsigned long currentMillis = millis();
 
+    currentLeftCount = getLeftEncoderCount();
+    currentRightCount = getRightEncoderCount();
+
+    if (currentMillis - lastTime >= sampletime)
+    {
+        deltacountright = currentRightCount - lastRightCount;
+        deltacountleft = currentLeftCount - lastLeftCount;
+        lastLeftCount = currentLeftCount;
+        lastRightCount = currentRightCount;
+
+        lastTime = currentMillis;
+    }
+    encoderLeftSpeed = (float)deltacountleft / ((float)sampletime / 1000.0);
+    encoderRightSpeed = (float)deltacountright / ((float)sampletime / 1000.0);
+
+    Setpointleft = leftspeed;
+    Setpointright = rightspeed;
+
+    Inputleft = encoderLeftSpeed;
+    Inputright = encoderRightSpeed;
+
+    pidleft.Compute();
+    pidright.Compute();
+
+
+    Serial.print(Outputleft);
+    Serial.print("\t");
+    Serial.println(Outputright);
 }
