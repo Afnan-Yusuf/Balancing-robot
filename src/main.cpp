@@ -14,6 +14,9 @@ Gyro Offsets -> X: -57 Y: -148 Z: -80
 #include <PID_v1.h>
 #include "motinit.h"
 
+#define potpin 4
+
+
 MPU6050 mpu;
 
 #define INTERRUPT_PIN 2 // use pin 2 on Arduino Uno & most boards
@@ -42,7 +45,7 @@ double Setpoint = 0, Input, Output;
 int leftspeed = 0, rightspeed = 0;
 
 // Specify the links and initial tuning parameters
-float Kp = 1.5, Ki = 0, Kd = 0;
+float Kp = 10, Ki = 0, Kd = 0;
 PID mypid(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 volatile bool mpuInterrupt = false;
@@ -57,15 +60,18 @@ void getypr(void *parameter)
 {
   while (1)
   {
-    // read a packet from FIFO
-    if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer))
+    if (dmpReady == true)
     {
-      mpu.dmpGetQuaternion(&q, fifoBuffer);
-      mpu.dmpGetGravity(&gravity, &q);
-      mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+      if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer))
+      {
+        mpu.dmpGetQuaternion(&q, fifoBuffer);
+        mpu.dmpGetGravity(&gravity, &q);
+        mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
 
-      // Serial.println(euler[1] * 180);
+        // Serial.println(euler[1] * 180);
+      }
     }
+    // read a packet from FIFO
   }
   vTaskDelay(1 / portTICK_PERIOD_MS);
 }
@@ -75,20 +81,22 @@ void pidcontrol(void *parameter)
   while (1)
   {
     Input = (ypr[1] * 180);
-    /*if (Input > (-onangle) && Input < (onangle))
+
+    if (Input > (-onangle) && Input < (onangle))
     {
+      Setpoint = map(analogRead(potpin), 0, 4096, -25, 25);
       mypid.Compute();
       rightspeed = Output;
       leftspeed = Output;
       if (Output > 0)
       {
         leftmotforward(leftspeed);
-        rightmotforward(rightspeed);
+        rightmotbackward(rightspeed);
       }
       else if (Output < 0)
       {
         leftmotbackward(-leftspeed);
-        rightmotbackward(-rightspeed);
+        rightmotforward(-rightspeed);
       }
     }
     else
@@ -97,13 +105,12 @@ void pidcontrol(void *parameter)
       leftspeed = 0;
       leftmotforward(leftspeed);
       rightmotforward(rightspeed);
-    }*/
-    goonencoder(100, 100);
-    Serial.print(getLeftEncoderCount());
-    Serial.print("\t");
-    // Serial.print(Input);
-    // Serial.print("\t");
-    // Serial.println(Output);
+    }
+     Serial.print(Setpoint);
+     Serial.print("\t");
+      Serial.print(Input);
+      Serial.print("\t");
+      Serial.println(analogRead(potpin));
   }
 }
 void setup()
@@ -125,8 +132,8 @@ void setup()
   if (devStatus == 0)
   {
     // Calibration Time: generate offsets and calibrate our MPU6050
-    //mpu.CalibrateAccel(6);
-    //mpu.CalibrateGyro(6);
+    // mpu.CalibrateAccel(6);
+    // mpu.CalibrateGyro(6);
     mpu.PrintActiveOffsets();
     Serial.println(F("Enabling DMP..."));
     mpu.setDMPEnabled(true);
@@ -156,6 +163,7 @@ void setup()
   Input = euler[1] * 180;
   mypid.SetMode(AUTOMATIC);
   mypid.SetOutputLimits(-255, 255);
+  pinMode(potpin, INPUT); 
   InitMot();
 }
 

@@ -24,7 +24,7 @@ volatile long encoderRightCount = 0; // Right motor encoder count
 double Inputleft, Outputleft, Inputright, Outputright;
 double Setpointleft = 0, Setpointright = 0;
 
-double Kpl = 1, Kil = 0, Kdl = 0;
+double Kpl = .019, Kil = 0.014, Kdl = 0.0000001;
 
 double Kpr = 1, Kir = 0, Kdr = 0;
 
@@ -179,6 +179,7 @@ void InitMot()
     pidright.SetMode(AUTOMATIC);
     pidleft.SetOutputLimits(-255, 255);
     pidright.SetOutputLimits(-255, 255);
+    pidleft.SetSampleTime(sampletime); // set pid sample time
 }
 void StopMot()
 {
@@ -279,9 +280,19 @@ void goonencoder(int leftspeed, int rightspeed)
 
     pidleft.Compute();
     pidright.Compute();
+    if(Outputleft > 0){
+        leftmotbackward(Outputleft);
+    }else{
+        leftmotforward(abs(Outputleft));
+    }
+
 
 
     Serial.print(Outputleft);
     Serial.print("\t");
-    Serial.println(Outputright);
+    Serial.print(encoderLeftSpeed);
+    Serial.print("\t");
+    Serial.print(leftspeed);
+    Serial.print("\t");
+    Serial.println(Inputleft);
 }
