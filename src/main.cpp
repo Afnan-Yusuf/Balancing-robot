@@ -45,7 +45,7 @@ double Setpoint = 0, Input, Output;
 int leftspeed = 0, rightspeed = 0;
 
 // Specify the links and initial tuning parameters
-float Kp = 10, Ki = 0, Kd = 0;
+float Kp = 19, Ki = 15, Kd = .0009;
 PID mypid(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 volatile bool mpuInterrupt = false;
@@ -84,7 +84,7 @@ void pidcontrol(void *parameter)
 
     if (Input > (-onangle) && Input < (onangle))
     {
-      Setpoint = map(analogRead(potpin), 0, 4096, -25, 25);
+      Setpoint = map(analogRead(potpin), 0, 4096, -10.0, 10.0);
       mypid.Compute();
       rightspeed = Output;
       leftspeed = Output;
@@ -110,7 +110,7 @@ void pidcontrol(void *parameter)
      Serial.print("\t");
       Serial.print(Input);
       Serial.print("\t");
-      Serial.println(analogRead(potpin));
+      Serial.println(Output);
   }
 }
 void setup()
@@ -162,9 +162,10 @@ void setup()
   xTaskCreatePinnedToCore(pidcontrol, "pidcontrol", 2048, NULL, 1, NULL, 1);
   Input = euler[1] * 180;
   mypid.SetMode(AUTOMATIC);
-  mypid.SetOutputLimits(-255, 255);
+  mypid.SetOutputLimits(-100, 100);
   pinMode(potpin, INPUT); 
   InitMot();
+  mypid.SetSampleTime(20);
 }
 
 void loop()
