@@ -45,7 +45,7 @@ double Setpoint = 0, Input, Output;
 int leftspeed = 0, rightspeed = 0;
 
 // Specify the links and initial tuning parameters
-float Kp = 19, Ki = 15, Kd = .0009;
+float Kp = 13, Ki = 25, Kd = .12;
 PID mypid(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 volatile bool mpuInterrupt = false;
