@@ -12,7 +12,9 @@ Gyro Offsets -> X: -57 Y: -148 Z: -80
 #include "MPU6050_6Axis_MotionApps20.h"
 #include <Wire.h>
 #include <PID_v1.h>
+#include "ct6b.h"
 #include "motinit.h"
+#include "macros.h"
 
 #define potpin 4
 
@@ -45,7 +47,7 @@ double Setpoint = 0, Input, Output;
 int leftspeed = 0, rightspeed = 0;
 
 // Specify the links and initial tuning parameters
-float Kp = 13, Ki = 25, Kd = .12;
+float Kp = 13, Ki = 25, Kd = .0;
 PID mypid(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 volatile bool mpuInterrupt = false;
@@ -56,10 +58,9 @@ void dmpDataReady()
   mpuInterrupt = true;
 }
 
-void getypr(void *parameter)
+void getypr()
 {
-  while (1)
-  {
+
     if (dmpReady == true)
     {
       if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer))
@@ -72,22 +73,25 @@ void getypr(void *parameter)
       }
     }
     // read a packet from FIFO
-  }
-  vTaskDelay(1 / portTICK_PERIOD_MS);
+  
 }
 
 void pidcontrol(void *parameter)
 {
   while (1)
   {
+    runonct6b();
+    getypr();
     Input = (ypr[1] * 180);
 
     if (Input > (-onangle) && Input < (onangle))
     {
-      Setpoint = map(analogRead(potpin), 0, 4096, -10.0, 10.0);
+      Setpoint = zz;
       mypid.Compute();
       rightspeed = Output;
       leftspeed = Output;
+      leftspeed -= x;
+      rightspeed += x;
       if (Output > 0)
       {
         leftmotforward(leftspeed);
@@ -103,6 +107,7 @@ void pidcontrol(void *parameter)
     {
       rightspeed = 0;
       leftspeed = 0;
+      
       leftmotforward(leftspeed);
       rightmotforward(rightspeed);
     }
@@ -110,8 +115,12 @@ void pidcontrol(void *parameter)
      Serial.print("\t");
       Serial.print(Input);
       Serial.print("\t");
-      Serial.println(Output);
+      Serial.println(x);
+        
+
+      
   }
+
 }
 void setup()
 {
@@ -155,17 +164,20 @@ void setup()
     // (if it's going to break, usually the code will be 1)
     Serial.print(F("DMP Initialization failed (code "));
     Serial.print(devStatus);
-    Serial.println(F(")"));
+    Serial.println(F(")"));x = map(pwmValues[4], ch1min, ch2max, 0, 510) - 255;
+  y = map(pwmValues[5], ch1min, ch1max, 0, 510) - 255;
+  z = map(pwmValues[0], ch3min, ch3max, 0, 255);
   }
-  xTaskCreatePinnedToCore(getypr, "getypr", 2048, NULL, 1, NULL, 0);
+  //xTaskCreatePinnedToCore(getypr, "getypr", 2048, NULL, 1, NULL, 0);
 
-  xTaskCreatePinnedToCore(pidcontrol, "pidcontrol", 2048, NULL, 1, NULL, 1);
+  xTaskCreatePinnedToCore(pidcontrol, "pidcontrol", 2048, NULL, 0, NULL, 0);
   Input = euler[1] * 180;
   mypid.SetMode(AUTOMATIC);
   mypid.SetOutputLimits(-100, 100);
-  pinMode(potpin, INPUT); 
   InitMot();
   mypid.SetSampleTime(20);
+  ct6binit();
+  
 }
 
 void loop()
