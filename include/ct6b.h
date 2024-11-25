@@ -46,7 +46,7 @@ bool bufferFull = false;
 
 float x, y, z;
 
-float zz;
+float zz, yy, xx;
 
 
 float updateFilter(float newValue) {
@@ -86,10 +86,11 @@ void runonct6b()
 
     now = millis();
     now - lastconnect > connectiontimeoutdelay ? disconnected = true : disconnected = false;
-    z = map(pwmValues[2], ch1min, ch2max, 0, 200) - 100;
-    x = map(pwmValues[0], ch1min, ch1max, 0, 510) - 255;
+    z = map(pwmValues[2], ch1min, ch2max, 0, 300) - 150;
+    x = map(pwmValues[0], ch1min, ch1max, 0, 150) - 75;
     y = map(pwmValues[1], ch3min, ch3max, 0, 300) - 150;
     zz = updateFilter(y) /10;
+    yy = updateFilter(z) /10;
 
     // Serial.print(x);
     // Serial.print("\t");

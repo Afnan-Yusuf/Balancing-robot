@@ -47,7 +47,7 @@ double Setpoint = 0, Input, Output;
 int leftspeed = 0, rightspeed = 0;
 
 // Specify the links and initial tuning parameters
-float Kp = 13, Ki = 25, Kd = .0;
+float Kp = 12, Ki = 5, Kd = .00000;
 PID mypid(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 volatile bool mpuInterrupt = false;
@@ -76,17 +76,18 @@ void getypr()
   
 }
 
-void pidcontrol(void *parameter)
-{
-  while (1)
+  void run ()
   {
+    
+  
     runonct6b();
     getypr();
     Input = (ypr[1] * 180);
 
     if (Input > (-onangle) && Input < (onangle))
     {
-      Setpoint = zz;
+      Setpoint = yy;
+      Setpoint +=zz;
       mypid.Compute();
       rightspeed = Output;
       leftspeed = Output;
@@ -111,21 +112,19 @@ void pidcontrol(void *parameter)
       leftmotforward(leftspeed);
       rightmotforward(rightspeed);
     }
-     Serial.print(Setpoint);
-     Serial.print("\t");
-      Serial.print(Input);
-      Serial.print("\t");
-      Serial.println(x);
+    //  Serial.print(Setpoint);
+    //  Serial.print("\t");
+       Serial.println(ypr[1] * 180);
+    //   Serial.print("\t");
+    //   Serial.println(x);
         
 
-      
-  }
-
-}
+  }    
+ 
 void setup()
 {
   Wire.begin(21, 22);
-  Wire.setClock(400000);
+  Wire.setClock(200000);
   Serial.begin(115200);
   mpu.initialize();
   pinMode(INTERRUPT_PIN, INPUT);
@@ -165,15 +164,14 @@ void setup()
     Serial.print(F("DMP Initialization failed (code "));
     Serial.print(devStatus);
     Serial.println(F(")"));x = map(pwmValues[4], ch1min, ch2max, 0, 510) - 255;
-  y = map(pwmValues[5], ch1min, ch1max, 0, 510) - 255;
-  z = map(pwmValues[0], ch3min, ch3max, 0, 255);
+
   }
   //xTaskCreatePinnedToCore(getypr, "getypr", 2048, NULL, 1, NULL, 0);
 
-  xTaskCreatePinnedToCore(pidcontrol, "pidcontrol", 2048, NULL, 0, NULL, 0);
+  //xTaskCreatePinnedToCore(pidcontrol, "pidcontrol", 2048, NULL, 0, NULL, 0);
   Input = euler[1] * 180;
   mypid.SetMode(AUTOMATIC);
-  mypid.SetOutputLimits(-100, 100);
+  mypid.SetOutputLimits(-150, 150);
   InitMot();
   mypid.SetSampleTime(20);
   ct6binit();
@@ -182,6 +180,7 @@ void setup()
 
 void loop()
 {
+  run();
 }
 
-/**/
+
