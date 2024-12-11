@@ -11,7 +11,6 @@ Gyro Offsets -> X: -57 Y: -148 Z: -80
 #include "I2Cdev.h"
 #include "MPU6050_6Axis_MotionApps20.h"
 #include <Wire.h>
-#include <PID_v1.h>
 #include "ct6b.h"
 #include "motinit.h"
 #include "macros.h"
@@ -88,7 +87,7 @@ void getypr()
     {
       Setpoint = yy;
       Setpoint +=zz;
-      mypid.Compute();
+      //mypid.Compute();
       rightspeed = Output;
       leftspeed = Output;
       leftspeed -= x;
